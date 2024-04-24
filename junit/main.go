@@ -28,14 +28,49 @@ type Step struct {
 
 type Response struct {
 	Token    string `json:"token"`
-	StepList []Step `json:"steps"`
+	Steps []Step `json:"steps"`
+}
+
+func parseXML(path string) *xmlquery.Node {
+	content, err_file := os.ReadFile(path)
+	if err_file != nil {
+		log.Println("Erreur lors de la lecture du fichier:", err_file)
+		return nil
+	}
+
+	doc, err_parsing := xmlquery.Parse(strings.NewReader(string(content)))
+	if err_parsing != nil {
+		panic(err_parsing)
+	}
+
+	return doc
+}
+
+func createSubStep(testcase *xmlquery.Node) SubStep {
+	var passed bool = true
+	var failureMessage string = ""
+	var errorMessage string = ""
+
+	failure := testcase.SelectElement("failure")
+	if failure != nil {
+		passed = false
+		errorMessage = failure.SelectAttr("message")
+		failureMessage = failure.InnerText()
+	}
+
+	var name string = testcase.SelectAttr("name")
+	failureMessage = html.UnescapeString(failureMessage)
+
+	var subStep SubStep = SubStep{Name: name, Passed: passed, Message: failureMessage, Error: errorMessage}
+
+	return subStep
 }
 
 func main() {
 	godotenv.Load()
 	var dirPath string = os.Getenv("FOLDER_PATH")
 
-	var step_list []Step
+	var steps []Step
 
 	files, err := os.ReadDir(dirPath)
 
@@ -45,50 +80,29 @@ func main() {
 	}
 
 	for _, file := range files {
-		file_path := filepath.Join(dirPath, file.Name())
+		filePath := filepath.Join(dirPath, file.Name())
 		if !file.IsDir() && filepath.Ext(file.Name()) == ".xml" {
-			var sub_steps []SubStep
-			sub_passed := true
+			var subSteps []SubStep
 
-			content, err_file := os.ReadFile(file_path)
-			if err_file != nil {
-				log.Println("Erreur lors de la lecture du fichier:", err_file)
-				continue
-			}
+			doc := parseXML(filePath)
 
-			doc, err_parsing := xmlquery.Parse(strings.NewReader(string(content)))
-			if err_parsing != nil {
-				panic(err_parsing)
-			}
 			step_, _ := xmlquery.Query(doc, "//testcase")
-			step_name := step_.SelectAttr("classname")
+			name := step_.SelectAttr("classname")
 
-			testcase_list, _ := xmlquery.QueryAll(doc, "//testcase")
+			testcases, _ := xmlquery.QueryAll(doc, "//testcase")
 
-			for _, testcase := range testcase_list {
-				var failure_message string = ""
-				var error_message string = ""
+			for _, testcase := range testcases {
 
-				failure := testcase.SelectElement("failure")
-				if failure != nil {
-					sub_passed = false
-					error_message = failure.SelectAttr("message")
-					failure_message = failure.InnerText()
-				} else {
-					sub_passed = true
-				}
+				subStep := createSubStep(testcase)
 
-				var name string = testcase.SelectAttr("name")
-				failure_message = html.UnescapeString(failure_message)
-
-				var sub_step SubStep = SubStep{Name: name, Passed: sub_passed, Message: failure_message, Error: error_message}
-				sub_steps = append(sub_steps, sub_step)
+				subSteps = append(subSteps, subStep)
 			}
-			step := Step{Name: step_name, SubSteps: sub_steps}
-			step_list = append(step_list, step)
+			step := Step{Name: name, SubSteps: subSteps}
+			steps = append(steps, step)
 		}
 	}
-	response := Response{Token: "", StepList: step_list}
+
+	response := Response{Token: os.Getenv("CALLBACK_TOKEN"), Steps: steps}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

@@ -15,11 +15,15 @@ on:
 
 env:
     REGISTRY: ghcr.io
+    OWNER: ${{ github.repository_owner }}
+    NAME_PREFIX: crackito
+    NAME_SUFIX: adapter
 
 jobs:
     push_to_registry:
         name: Push Docker image to Github Package
         runs-on: ubuntu-latest
+        if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
 
         permissions:
             contents: read
@@ -29,7 +33,7 @@ jobs:
             - name: Check out the repo
               uses: actions/checkout@v4
 
-            - name: Log in to Docker Hub
+            - name: Log in to GHCR.io
               uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
               with:
                   registry: ${{ env.REGISTRY }}
@@ -42,4 +46,4 @@ jobs:
                   context: ./junit
                   file: ./junit/Dockerfile
                   push: true
-                  tags: ${{ github.repository }}
+                  tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.NAME_PREFIX }}-junit-${{ env.NAME_SUFIX }}

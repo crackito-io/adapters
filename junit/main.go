@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ type Step struct {
 }
 
 type Response struct {
-	Token    string `json:"token"`
+	Token string `json:"token"`
 	Steps []Step `json:"steps"`
 }
 
@@ -110,20 +111,17 @@ func main() {
 	_ = enc.Encode(response)
 
 	responseJSON := buf.String()
-	fmt.Print(responseJSON)
 
-	/*
-		data := bytes.NewBuffer([]byte(responseJSON))
-		url := os.Getenv("CRACKITO_URL") + "/api/v1/endpoint/ci-result/" + os.Getenv("CALLBACK_TOKEN")
-		req, _ := http.NewRequest("POST", url, data)
-		req.Header.Set("Content-Type", "application/json")
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Println("Erreur lors de l'envoi de la requête :", err)
-			return
-		}
-		defer resp.Body.Close()
-	*/
+	data := bytes.NewBuffer([]byte(responseJSON))
+	url := os.Getenv("WEBHOOK_URL")
+	req, _ := http.NewRequest("POST", url, data)
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Erreur lors de l'envoi de la requête :", err)
+		return
+	}
+	defer resp.Body.Close()
 
 }

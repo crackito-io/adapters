@@ -23,7 +23,7 @@ type SubStep struct {
 
 type Step struct {
 	Name     string    `json:"name"`
-	SubSteps []SubStep `json:"sub_steps,omitempty"`
+	SubSteps []SubStep `json:"tests,omitempty"`
 }
 
 type Response struct {

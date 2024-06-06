@@ -55,6 +55,9 @@ func createSubStep(testcase *xmlquery.Node) SubStep {
 	if failure != nil {
 		passed = false
 		errorMessage = failure.SelectAttr("message")
+		if errorMessage == "" {
+			errorMessage = failure.SelectAttr("type")
+		}
 		failureMessage = failure.InnerText()
 	}
 
@@ -112,6 +115,7 @@ func main() {
 	responseJSON := buf.String()
 
 	data := bytes.NewBuffer([]byte(responseJSON))
+
 	url := os.Getenv("WEBHOOK_URL")
 	req, _ := http.NewRequest("POST", url, data)
 	req.Header.Set("Content-Type", "application/json")
